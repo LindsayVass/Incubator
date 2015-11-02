@@ -62,47 +62,6 @@ cleanZipShape <- merge(cleanZipShape, zipShape@data, by.x = 'id', by.y = 'ZCTA5C
 
 # Plot data ---------------------------------------------------------------
 
-# examine PPA violations by day of week
-dayBar <- PPA %>%
-  group_by(DayOfWeek) %>%
-  summarise(Count = n()) %>%
-  ggplot(aes(x = DayOfWeek, y = Count)) +
-  geom_bar(stat = "identity") +
-  theme(axis.title.x = element_blank()) +
-  ylab("Total Number of Violations")
-dayBar
-
-# examine weekly PPA violations over the course of the year
-weekLine <- PPA %>%
-  group_by(WeekNumber) %>%
-  summarise(Count = n()) %>%
-  ggplot(aes(x = WeekNumber, y = Count)) +
-  geom_line() +
-  xlab('Week Number') +
-  ylab('Total Number of Violations')
-weekLine
-
-# examine monthly PPA violations
-monthBar <- PPA %>%
-  group_by(Month) %>%
-  summarise(Count = n()) %>%
-  ggplot(aes(x = Month, y = Count)) +
-  geom_bar(stat = "identity") +
-  theme(axis.title.x = element_blank()) +
-  ylab("Total Number of Violations")
-monthBar
-
-# violations by Zip
-PPA$Zip <- as.factor(PPA$Zip)
-zipBar <- PPA %>%
-  group_by(Zip) %>%
-  summarise(Count = n()) %>%
-  ggplot(aes(x = Zip, y = Count)) +
-  geom_bar(stat = "identity") +
-  xlab('Zip Code') +
-  ylab("Total Number of Violations")
-zipBar
-
 # create bounding box for map using zipShape data
 b <- bbox(zipShape)
 b[1, ] <- (b[1, ] - mean(b[1, ])) * 1.05 + mean(b[1, ])
@@ -116,12 +75,31 @@ zipCount <- PPA %>%
   summarise(Count = n())
 zipData  <- merge(zipCount, cleanZipShape, by.x = 'Zip', by.y = 'id')
 zipCountMap <- m + 
-  geom_polygon(data = zipData, aes(x = long, y = lat, group = Zip, fill = Count), color = 'black')  
+  geom_polygon(data = zipData, aes(x = long, y = lat, group = Zip, fill = Count), color = 'black') +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank()) +
+  scale_fill_continuous(name = 'Number of Violations')
+dir.create('Figures')
+ggsave('Figures/ZipCountMap.pdf')
 
-# produce map of total violation revenue by zip code
-zipRevenue <- PPA %>%
+# violations by Zip
+PPA$Zip <- as.factor(PPA$Zip)
+zipVio <- PPA %>%
   group_by(Zip) %>%
-  summarise(Revenue = sum(Fine))
-zipRevenue <- merge(zipRevenue, cleanZipShape, by.x = 'Zip', by.y = 'id')
-zipRevenueMap <- m +
-  geom_polygon(data = zipRevenue, aes(x = long, y = lat, group = Zip, fill = Revenue), color = 'black')
+  summarise(Count = n()) %>%
+  arrange(desc(Count))
+
+# violations over time for top 5 zipcodes
+topZip <- zipVio[1:5,] %>%
+  select(-Count)
+timeZip <- inner_join(PPA, topZip) %>%
+  group_by(Zip, WeekNumber) %>%
+  summarise(Count = n())
+timeZipLine <- ggplot(timeZip, aes(x = WeekNumber, y = Count, colour = Zip)) +
+  geom_line(size = 2) +
+  xlab('Week Number') +
+  ylab('Total Violations')
+timeZipLine
+ggsave('Figures/TimeZipLine.pdf')
