@@ -9,3 +9,4 @@
 .RData
 
 *.csv
+.Rproj.user
